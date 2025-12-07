@@ -1,0 +1,59 @@
+# ICT Trading Agent Configuration File
+
+# Trading Parameters
+trading:
+  symbol: "NQ=F"              # Default trading symbol (NASDAQ Futures)
+  timeframe: "1h"             # Data timeframe
+  lookback_period: 100        # Number of periods to analyze
+  
+# Pattern Detection Settings
+patterns:
+  fvg_min_size: 0.001         # Minimum Fair Value Gap size (as percentage)
+  orderblock_strength: 3      # Minimum strength for Order Block detection
+  liquidity_threshold: 0.05   # Liquidity pool detection threshold
+  swing_window: 5             # Window size for swing point detection
+
+# Risk Management
+risk:
+  risk_per_trade: 0.02        # Risk 2% of capital per trade
+  max_positions: 3            # Maximum concurrent positions
+  stop_loss_atr_multiplier: 2 # ATR multiplier for stop loss
+  take_profit_ratio: 2        # Risk:Reward ratio for take profit
+
+# Data Sources
+data:
+  primary_source: "yfinance"  # Primary data source
+  backup_source: "alpha_vantage" # Backup data source
+  cache_duration: 300         # Data cache duration in seconds
+
+# Alerts and Notifications
+alerts:
+  enabled: true               # Enable alert system
+  webhook_url: ""            # Discord/Slack webhook URL
+  email_enabled: false       # Email notifications
+  email_smtp_server: ""      # SMTP server
+  email_from: ""             # From email address
+  email_to: ""               # To email address
+  email_password: ""         # Email password (use environment variables)
+
+# Backtesting Settings
+backtesting:
+  initial_capital: 10000      # Starting capital for backtesting
+  commission: 2.0             # Commission per trade
+  slippage: 0.001            # Slippage assumption (as percentage)
+  start_date: "2023-01-01"   # Default backtest start date
+  end_date: "2023-12-31"     # Default backtest end date
+
+# Logging
+logging:
+  level: "INFO"              # Logging level (DEBUG, INFO, WARNING, ERROR)
+  file: "logs/ict_agent.log" # Log file path
+  max_size: "10MB"           # Maximum log file size
+  backup_count: 5            # Number of backup log files
+
+# Dashboard Settings
+dashboard:
+  port: 8501                 # Streamlit port
+  host: "localhost"          # Host address
+  auto_refresh: 30           # Auto refresh interval in seconds
+  theme: "dark"              # Dashboard theme (dark/light)
