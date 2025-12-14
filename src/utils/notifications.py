@@ -357,7 +357,7 @@ ACCOUNT:
         
         Args:
             signal: Trading signal
-            
+        
         Returns:
             Risk/reward ratio
         """
@@ -365,7 +365,10 @@ ACCOUNT:
         stop = signal.get('stop_loss', 0)
         target = signal.get('take_profit', 0)
         
-        if entry == 0 or stop == 0:
+        if entry == 0 or stop == 0 or target == 0:
+            return 0.0
+        
+        if entry == stop:  # Zero risk scenario
             return 0.0
         
         risk = abs(entry - stop)

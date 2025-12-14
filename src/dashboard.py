@@ -488,7 +488,7 @@ def main():
                 value=config.get('patterns', {}).get('orderblock_strength', 3)
             )
             
-            st.number_input(
+            risk_per_trade = st.number_input(
                 "Risk Per Trade (%)",
                 min_value=0.01,
                 max_value=10.0,
