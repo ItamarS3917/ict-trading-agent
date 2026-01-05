@@ -69,4 +69,4 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Verify Streamlit can import
-        run: python -c "from src.main import main; print('Import successful')"
+        run: python -c "from main import main; print('Import successful')"
