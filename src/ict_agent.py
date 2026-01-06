@@ -27,9 +27,30 @@ class ICTTradingAgent:
         Args:
             config: Configuration dictionary with trading parameters
         """
-        self.config = config or self._default_config()
+        self.config = self._normalize_config(config or self._default_config())
         self.data_handler = DataHandler()
         self.pattern_detector = PatternDetector(self.config)
+
+    def _normalize_config(self, config: dict) -> dict:
+        """
+        Normalize nested configuration by flattening sections.
+        
+        Args:
+            config: Potentially nested configuration dictionary
+            
+        Returns:
+            Flattened configuration dictionary
+        """
+        flat_config = config.copy()
+        
+        # Sections to flatten
+        sections = ["trading", "patterns", "risk", "data", "alerts", "backtesting"]
+        
+        for section in sections:
+            if section in config and isinstance(config[section], dict):
+                flat_config.update(config[section])
+                
+        return flat_config
 
     def _default_config(self) -> dict:
         """Default configuration for the trading agent."""

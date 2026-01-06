@@ -28,36 +28,98 @@ logger = logging.getLogger(__name__)
 
 # Page configuration
 st.set_page_config(
-    page_title="ICT Trading Agent Dashboard",
+    page_title="ICT Trading Agent | Professional Analysis Suite",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Custom CSS
-st.markdown(
-    """
+# Professional CSS for Trading Terminal Aesthetic
+st.markdown("""
 <style>
-    .main {
-        padding: 0rem 1rem;
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    :root {
+        --bg-main: #0e1117;
+        --bg-secondary: #161b22;
+        --border-color: #30363d;
+        --text-primary: #e6edf3;
+        --text-secondary: #8b949e;
+        --trading-green: #26a69a;
+        --trading-red: #ef5350;
+        --accent-blue: #58a6ff;
     }
-    .stAlert {
-        padding: 1rem;
-        margin: 1rem 0;
+
+    .stApp {
+        background-color: var(--bg-main);
+        color: var(--text-primary);
+        font-family: 'Inter', sans-serif;
     }
-    h1 {
-        color: #1f77b4;
+
+    /* Sidebar Styling */
+    [data-testid="stSidebar"] {
+        background-color: var(--bg-secondary);
+        border-right: 1px solid var(--border-color);
     }
-    .metric-card {
-        background-color: #f0f2f6;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        margin: 0.5rem 0;
+
+    /* Header Styling */
+    h1, h2, h3 {
+        font-family: 'Inter', sans-serif !important;
+        font-weight: 700 !important;
+        color: var(--text-primary) !important;
+        letter-spacing: -0.5px;
     }
+
+    /* Professional Metric Cards */
+    [data-testid="stMetricValue"] {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-weight: 600 !important;
+        font-size: 1.8rem !important;
+    }
+    
+    [data-testid="stMetricLabel"] {
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-secondary) !important;
+        font-size: 0.75rem !important;
+    }
+
+    /* Tabs Styling */
+    .stTabs [data-baseweb="tab-list"] {
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        color: var(--text-secondary);
+        padding: 0.75rem 1.5rem;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        color: var(--accent-blue) !important;
+        border-bottom: 2px solid var(--accent-blue) !important;
+    }
+
+    /* Signal Containers */
+    .signal-container {
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        background-color: var(--bg-secondary);
+    }
+    
+    .status-badge {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+
+    /* Hide Streamlit elements */
+    footer {visibility: hidden;}
 </style>
-""",
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
 
 
 @st.cache_resource
@@ -76,15 +138,25 @@ def load_data(symbol: str, period: str, interval: str):
 
 
 def plot_price_chart(df: pd.DataFrame, fvgs=None, order_blocks=None):
-    """Create interactive price chart with patterns."""
+    """Create professional price chart with ICT patterns."""
     fig = make_subplots(
         rows=2,
         cols=1,
         shared_xaxes=True,
-        vertical_spacing=0.03,
-        subplot_titles=("Price Chart", "Volume"),
-        row_heights=[0.7, 0.3],
+        vertical_spacing=0.02,
+        row_heights=[0.8, 0.2],
     )
+
+    # Professional Trading Layout
+    trading_layout = {
+        'plot_bgcolor': '#161b22',
+        'paper_bgcolor': '#0e1117',
+        'font': {'color': '#e6edf3', 'family': 'Inter'},
+        'xaxis': {'gridcolor': '#30363d', 'showline': True, 'linecolor': '#30363d'},
+        'yaxis': {'gridcolor': '#30363d', 'showline': True, 'linecolor': '#30363d', 'side': 'right'},
+        'xaxis2': {'gridcolor': '#30363d', 'showline': True, 'linecolor': '#30363d'},
+        'yaxis2': {'gridcolor': '#30363d', 'showline': True, 'linecolor': '#30363d', 'side': 'right'},
+    }
 
     # Candlestick chart
     fig.add_trace(
@@ -95,56 +167,64 @@ def plot_price_chart(df: pd.DataFrame, fvgs=None, order_blocks=None):
             low=df["Low"],
             close=df["Close"],
             name="Price",
+            increasing_line_color='#26a69a',
+            decreasing_line_color='#ef5350',
+            increasing_fillcolor='#26a69a',
+            decreasing_fillcolor='#ef5350',
         ),
         row=1,
         col=1,
     )
 
-    # Fair Value Gaps
+    # Fair Value Gaps - Semi-transparent zones
     if fvgs:
-        for fvg in fvgs[:5]:  # Show top 5 FVGs
-            color = "green" if fvg["direction"] == "BULLISH" else "red"
+        for fvg in fvgs[:10]: 
+            is_bullish = fvg["direction"] == "BULLISH"
+            color = "#26a69a" if is_bullish else "#ef5350"
             fig.add_hrect(
                 y0=fvg["gap_low"],
                 y1=fvg["gap_high"],
                 fillcolor=color,
-                opacity=0.2,
+                opacity=0.1,
                 line_width=0,
                 row=1,
                 col=1,
             )
 
-    # Order Blocks
+    # Order Blocks - Distinguished zones
     if order_blocks:
-        for ob in order_blocks[:5]:  # Show top 5 OBs
-            color = "lightgreen" if ob["direction"] == "BULLISH" else "lightcoral"
+        for ob in order_blocks[:10]:
+            is_bullish = ob["direction"] == "BULLISH"
+            color = "#58a6ff" if is_bullish else "#bc85ff" 
             fig.add_hrect(
                 y0=ob["block_low"],
                 y1=ob["block_high"],
                 fillcolor=color,
-                opacity=0.3,
+                opacity=0.15,
                 line_width=1,
+                line_color=color,
+                line_dash="dash",
                 row=1,
                 col=1,
             )
 
     # Volume bars
     colors = [
-        "red" if df["Close"].iloc[i] < df["Open"].iloc[i] else "green" for i in range(len(df))
+        "#ef5350" if df["Close"].iloc[i] < df["Open"].iloc[i] else "#26a69a" for i in range(len(df))
     ]
 
     fig.add_trace(
-        go.Bar(x=df.index, y=df["Volume"], name="Volume", marker_color=colors, showlegend=False),
+        go.Bar(x=df.index, y=df["Volume"], name="Volume", marker_color=colors, opacity=0.7),
         row=2,
         col=1,
     )
 
     fig.update_layout(
-        title="Market Analysis",
-        yaxis_title="Price",
+        **trading_layout,
+        height=750,
         xaxis_rangeslider_visible=False,
-        height=600,
-        showlegend=True,
+        showlegend=False,
+        margin=dict(l=0, r=50, t=10, b=0),
         hovermode="x unified",
     )
 
@@ -152,7 +232,7 @@ def plot_price_chart(df: pd.DataFrame, fvgs=None, order_blocks=None):
 
 
 def plot_backtest_results(results: dict):
-    """Plot backtest results."""
+    """Plot backtest results with professional equity curve."""
     if "equity_curve" not in results or not results["equity_curve"]:
         st.warning("No equity curve data available")
         return
@@ -167,23 +247,29 @@ def plot_backtest_results(results: dict):
             y=equity_df["equity"],
             mode="lines",
             name="Equity",
-            line={"color": "blue", "width": 2},
+            line={"color": "#58a6ff", "width": 2},
+            fill='tozeroy',
+            fillcolor='rgba(88, 166, 255, 0.05)'
         )
     )
 
-    # Add initial capital line
+    # Baseline
     fig.add_hline(
         y=results["initial_capital"],
-        line_dash="dash",
-        line_color="gray",
-        annotation_text="Initial Capital",
+        line_dash="dot",
+        line_color="#8b949e",
+        annotation_text="Principal",
+        annotation_font_color="#8b949e"
     )
 
     fig.update_layout(
-        title="Equity Curve",
-        xaxis_title="Date",
-        yaxis_title="Equity ($)",
+        plot_bgcolor='#161b22',
+        paper_bgcolor='#0e1117',
+        font={'color': '#e6edf3', 'family': 'Inter'},
+        xaxis={'gridcolor': '#30363d', 'title': ''},
+        yaxis={'gridcolor': '#30363d', 'title': 'Capital ($)', 'side': 'right'},
         height=400,
+        margin=dict(l=0, r=50, t=20, b=0),
         hovermode="x unified",
     )
 
@@ -191,11 +277,21 @@ def plot_backtest_results(results: dict):
 
 
 def main():
-    """Main dashboard application."""
+    """Main dashboard application - Professional Suite."""
 
-    # Header
-    st.title("📊 ICT Trading Agent Dashboard")
-    st.markdown("---")
+    # Clean Header
+    st.markdown("""
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
+            <div>
+                <h1 style="margin: 0; padding: 0; font-size: 2rem;">ICT Trading Agent</h1>
+                <p style="margin: 0; padding: 0; color: var(--text-secondary); font-size: 0.85rem; font-weight: 500;">Advanced Algorithmic Analysis Suite</p>
+            </div>
+            <div style="text-align: right;">
+                <div style="color: var(--trading-green); font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 500;">● SYSTEM CONNECTED</div>
+                <div style="color: var(--text-secondary); font-size: 0.75rem;">Terminal v1.0.4</div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
     # Sidebar
     st.sidebar.title("⚙️ Configuration")
@@ -237,95 +333,107 @@ def main():
 
     # Tab 1: Live Analysis
     with tab1:
-        st.header("Live Market Analysis")
+        st.subheader("Market Overview")
 
-        with st.spinner("Loading market data..."):
+        with st.spinner("Fetching market data..."):
             df = load_data(symbol, period, timeframe)
 
         if df.empty:
             st.error(f"No data available for {symbol}")
             return
 
-        # Display current price
+        # Market Metrics
         current_price = df["Close"].iloc[-1]
         price_change = df["Close"].iloc[-1] - df["Close"].iloc[-2]
         price_change_pct = (price_change / df["Close"].iloc[-2]) * 100
+        
+        m1, m2, m3, m4 = st.columns(4)
 
-        col1, col2, col3, col4 = st.columns(4)
-
-        with col1:
+        with m1:
             st.metric(
-                label="Current Price",
-                value=f"${current_price:.2f}",
-                delta=f"{price_change:.2f} ({price_change_pct:+.2f}%)",
+                label="Price",
+                value=f"${current_price:,.2f}",
+                delta=f"{price_change:+.2f} ({price_change_pct:+.2f}%)",
             )
 
-        with col2:
-            st.metric(label="24h High", value=f"${df['High'].iloc[-24:].max():.2f}")
+        with m2:
+            st.metric("High (24h)", f"${df['High'].iloc[-24:].max():,.2f}")
 
-        with col3:
-            st.metric(label="24h Low", value=f"${df['Low'].iloc[-24:].min():.2f}")
+        with m3:
+            st.metric("Low (24h)", f"${df['Low'].iloc[-24:].min():,.2f}")
 
-        with col4:
-            st.metric(label="Volume", value=f"{df['Volume'].iloc[-1]:,.0f}")
+        with m4:
+            st.metric("Volume", f"{df['Volume'].iloc[-1]:,.0f}")
 
-        st.markdown("---")
-
-        # Generate analysis
-        with st.spinner("Analyzing market structure..."):
+        # Analysis Logic
+        with st.spinner("Analyzing ICT patterns..."):
             agent = ICTTradingAgent(config)
-
-            # Get patterns
             fvgs = agent.detect_fair_value_gaps(symbol)
             order_blocks = agent.detect_order_blocks(symbol)
             market_structure = agent.analyze_market_structure(symbol)
             signals = agent.generate_signals(symbol)
 
-        # Display chart
-        fig = plot_price_chart(df, fvgs, order_blocks)
-        st.plotly_chart(fig, use_container_width=True)
+        # Main Chart Area
+        st.plotly_chart(plot_price_chart(df, fvgs, order_blocks), use_container_width=True)
 
-        # Market Structure
-        st.subheader("Market Structure Analysis")
-        col1, col2 = st.columns(2)
+        # Market Information
+        st.subheader("Market Intelligence")
+        col_info1, col_info2 = st.columns(2)
 
-        with col1:
+        with col_info1:
             trend = market_structure.get("trend_direction", "UNKNOWN")
-            trend_emoji = "📈" if trend == "UPTREND" else "📉" if trend == "DOWNTREND" else "➡️"
-            st.info(f"{trend_emoji} **Trend Direction:** {trend}")
+            trend_color = "var(--trading-green)" if trend == "UPTREND" else "var(--trading-red)" if trend == "DOWNTREND" else "var(--text-secondary)"
+            st.markdown(f"""
+            <div class="signal-container">
+                <div style="color: var(--text-secondary); font-size: 0.7rem; margin-bottom: 0.4rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Market Trend</div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: {trend_color};">
+                    {trend} {'↑' if trend == "UPTREND" else '↓' if trend == "DOWNTREND" else '→'}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
-        with col2:
-            st.info(f"🔍 **Patterns Detected:** {len(fvgs)} FVGs, {len(order_blocks)} Order Blocks")
+        with col_info2:
+            st.markdown(f"""
+            <div class="signal-container">
+                <div style="color: var(--text-secondary); font-size: 0.7rem; margin-bottom: 0.4rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Pattern Confluence</div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-blue);">
+                    {len(fvgs)} FVGs • {len(order_blocks)} Order Blocks
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
         # Trading Signals
-        st.subheader("🚨 Trading Signals")
+        st.subheader("Alert Command")
 
         if signals:
-            for signal in signals[:3]:  # Show top 3 signals
-                direction_emoji = "🟢" if signal["direction"] in ["LONG", "BULLISH"] else "🔴"
-
-                with st.expander(
-                    f"{direction_emoji} {signal['pattern']} - Strength: {signal['strength']:.2%}"
-                ):
-                    col1, col2, col3, col4 = st.columns(4)
-
-                    with col1:
-                        st.metric("Entry Price", f"${signal['price']:.2f}")
-                    with col2:
-                        st.metric("Stop Loss", f"${signal['stop_loss']:.2f}")
-                    with col3:
-                        st.metric("Take Profit", f"${signal['take_profit']:.2f}")
-                    with col4:
-                        risk = abs(signal["price"] - signal["stop_loss"])
-                        reward = abs(signal["take_profit"] - signal["price"])
-                        rr = reward / risk if risk > 0 else 0
-                        st.metric("R:R Ratio", f"{rr:.2f}")
+            for signal in signals[:3]:
+                is_long = signal["direction"] in ["LONG", "BULLISH"]
+                sig_color = "var(--trading-green)" if is_long else "var(--trading-red)"
+                sig_bg = "rgba(38, 166, 154, 0.05)" if is_long else "rgba(239, 83, 80, 0.05)"
+                
+                st.markdown(f"""
+                <div style="background: {sig_bg}; border: 1px solid {sig_color}33; padding: 1.25rem; border-radius: 6px; margin-bottom: 0.75rem; border-left: 4px solid {sig_color};">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="color: {sig_color}; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">{signal['type']}</span>
+                            <span style="color: var(--text-secondary); margin-left: 12px; font-size: 0.9rem;">{signal['pattern']}</span>
+                        </div>
+                        <div style="font-family: 'JetBrains Mono'; color: {sig_color}; font-weight: 600;">CONFIDENCE: {signal['strength']:.1%}</div>
+                    </div>
+                    <div style="margin-top: 15px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
+                        <div><div style="color: var(--text-secondary); font-size: 0.7rem; text-transform: uppercase;">Entry</div><div style="font-weight: 600; font-family: 'JetBrains Mono'; font-size: 1.1rem;">${signal['price']:.2f}</div></div>
+                        <div><div style="color: var(--text-secondary); font-size: 0.7rem; text-transform: uppercase;">Stop Loss</div><div style="font-weight: 600; font-family: 'JetBrains Mono'; color: var(--trading-red); font-size: 1.1rem;">${signal['stop_loss']:.2f}</div></div>
+                        <div><div style="color: var(--text-secondary); font-size: 0.7rem; text-transform: uppercase;">Target</div><div style="font-weight: 600; font-family: 'JetBrains Mono'; color: var(--trading-green); font-size: 1.1rem;">${signal['take_profit']:.2f}</div></div>
+                        <div><div style="color: var(--text-secondary); font-size: 0.7rem; text-transform: uppercase;">R/R Ratio</div><div style="font-weight: 600; font-family: 'JetBrains Mono'; font-size: 1.1rem;">{(abs(signal['take_profit']-signal['price'])/abs(signal['price']-signal['stop_loss']) if abs(signal['price']-signal['stop_loss']) > 0 else 0):.2f}</div></div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
         else:
-            st.info("No trading signals detected at this time.")
+            st.info("Market neutral. No high-confidence signals currently detected.")
 
     # Tab 2: Backtesting
     with tab2:
-        st.header("Backtesting Engine")
+        st.markdown("### 🧪 Simulation Protocol")
 
         col1, col2, col3 = st.columns(3)
 
@@ -355,31 +463,29 @@ def main():
                 )
 
                 if "error" not in results:
-                    st.success("Backtest completed successfully!")
+                    st.success("Strategy Simulation Complete")
 
-                    # Display metrics
-                    col1, col2, col3, col4 = st.columns(4)
-
-                    with col1:
+                    # Professional Metrics Display
+                    m_col1, m_col2, m_col3, m_col4 = st.columns(4)
+                    
+                    with m_col1:
                         st.metric(
                             "Total Return",
                             f"{results['total_return']:.2%}",
-                            delta=f"${results['final_capital'] - results['initial_capital']:.2f}",
+                            delta=f"${results['final_capital'] - results['initial_capital']:,.2f}",
                         )
-
-                    with col2:
+                    
+                    with m_col2:
                         st.metric("Win Rate", f"{results['win_rate']:.2%}")
-
-                    with col3:
+                    
+                    with m_col3:
                         st.metric("Sharpe Ratio", f"{results['sharpe_ratio']:.2f}")
-
-                    with col4:
+                    
+                    with m_col4:
                         st.metric("Max Drawdown", f"{results['max_drawdown']:.2%}")
 
                     # Equity curve
-                    st.subheader("Equity Curve")
-                    fig = plot_backtest_results(results)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(plot_backtest_results(results), use_container_width=True)
 
                     # Trade statistics
                     st.subheader("Trade Statistics")
@@ -407,44 +513,60 @@ def main():
 
     # Tab 3: Patterns
     with tab3:
-        st.header("Pattern Detection")
+        st.subheader("Pattern Recognition Analysis")
 
         df = load_data(symbol, period, timeframe)
 
         if not df.empty:
             agent = ICTTradingAgent(config)
 
-            col1, col2 = st.columns(2)
+            col_p1, col_p2 = st.columns(2)
 
-            with col1:
-                st.subheader("📊 Fair Value Gaps")
+            with col_p1:
+                st.markdown("#### Fair Value Gaps (FVG)")
                 fvgs = agent.detect_fair_value_gaps(symbol)
 
                 if fvgs:
                     for i, fvg in enumerate(fvgs[:10], 1):
-                        direction_color = "🟢" if fvg["direction"] == "BULLISH" else "🔴"
-                        st.write(f"{direction_color} **FVG #{i}**")
-                        st.write(f"- Gap Size: {fvg['gap_size']:.4%}")
-                        st.write(f"- Strength: {fvg['strength']:.2%}")
-                        st.write(f"- Entry: ${fvg['entry_price']:.2f}")
-                        st.divider()
+                        is_bull = fvg["direction"] == "BULLISH"
+                        sig_color = "var(--trading-green)" if is_bull else "var(--trading-red)"
+                        st.markdown(f"""
+                        <div class="signal-container" style="border-left: 3px solid {sig_color};">
+                            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                                <span style="color: {sig_color}; font-weight: 700; font-size: 0.9rem;">FVG NODE #{i:02d}</span>
+                                <span style="color: var(--text-secondary); font-size: 0.75rem; font-family: 'JetBrains Mono';">{fvg['timestamp']}</span>
+                            </div>
+                            <div style="margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div><div style="color: var(--text-secondary); font-size: 0.65rem; text-transform: uppercase;">Gap Magnitude</div><div style="font-weight: 500; font-family: 'JetBrains Mono';">{fvg['gap_size']:.4%}</div></div>
+                                <div><div style="color: var(--text-secondary); font-size: 0.65rem; text-transform: uppercase;">Confidence Score</div><div style="font-weight: 500; font-family: 'JetBrains Mono'; color: var(--accent-blue);">{fvg['strength']:.2%}</div></div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
                 else:
-                    st.info("No FVGs detected")
+                    st.info("No ICT Fair Value Gaps identified in the current period.")
 
-            with col2:
-                st.subheader("🎯 Order Blocks")
+            with col_p2:
+                st.markdown("#### Order Block Analysis")
                 order_blocks = agent.detect_order_blocks(symbol)
 
                 if order_blocks:
                     for i, ob in enumerate(order_blocks[:10], 1):
-                        direction_color = "🟢" if ob["direction"] == "BULLISH" else "🔴"
-                        st.write(f"{direction_color} **Order Block #{i}**")
-                        st.write(f"- Range: ${ob['block_low']:.2f} - ${ob['block_high']:.2f}")
-                        st.write(f"- Strength: {ob['strength']:.2%}")
-                        st.write(f"- Entry: ${ob['entry_price']:.2f}")
-                        st.divider()
+                        is_bull = ob["direction"] == "BULLISH"
+                        sig_color = "var(--accent-blue)" if is_bull else "#bc85ff"
+                        st.markdown(f"""
+                        <div class="signal-container" style="border-left: 3px solid {sig_color};">
+                            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                                <span style="color: {sig_color}; font-weight: 700; font-size: 0.9rem;">ORDER BLOCK #{i:02d}</span>
+                                <span style="color: var(--text-secondary); font-size: 0.75rem; font-family: 'JetBrains Mono';">{ob['timestamp']}</span>
+                            </div>
+                            <div style="margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div><div style="color: var(--text-secondary); font-size: 0.65rem; text-transform: uppercase;">Price Range</div><div style="font-weight: 500; font-family: 'JetBrains Mono';">${ob['block_low']:.2f} - ${ob['block_high']:.2f}</div></div>
+                                <div><div style="color: var(--text-secondary); font-size: 0.65rem; text-transform: uppercase;">Efficiency Rating</div><div style="font-weight: 500; font-family: 'JetBrains Mono'; color: var(--accent-blue);">{ob['strength']:.2%}</div></div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
                 else:
-                    st.info("No Order Blocks detected")
+                    st.info("No institutional Order Blocks identified in the current period.")
 
     # Tab 4: Settings
     with tab4:
@@ -499,14 +621,20 @@ def main():
         st.info("💡 Configure webhook notifications for real-time trading alerts")
 
     # Footer
-    st.markdown("---")
-    st.markdown(
-        "<div style='text-align: center; color: gray;'>"
-        "Built with ❤️ for algorithmic trading enthusiasts | "
-        "ICT Trading Agent v1.0"
-        "</div>",
-        unsafe_allow_html=True,
-    )
+    st.markdown("""
+        <div style="margin-top: 5rem; padding: 2rem 0; border-top: 1px solid var(--border-color); text-align: left; display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <div style="font-weight: 700; color: var(--text-primary); font-size: 0.9rem;">ICT TRADING AGENT</div>
+                <div style="color: var(--text-secondary); font-size: 0.75rem; margin-top: 0.25rem;">
+                    Advanced Algorithmic Analysis & Strategy Backtesting
+                </div>
+            </div>
+            <div style="text-align: right; color: var(--text-secondary); font-size: 0.7rem;">
+                © 2026 PROFESSIONAL SUITE • MIT LICENSE<br>
+                BUILT WITH STREAMLIT & PLOTLY
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
