@@ -154,11 +154,18 @@ Each skill follows standard pattern:
 - Helper functions for skills to call MCP tools
 - Connection management
 - Error handling
+- Data freshness validation (ensures latest data before analysis)
 
 **src/utils/confluence_analyzer.py**
 - Correlates ICT patterns with TradingView indicators
 - Identifies multi-factor confluence zones
 - Scoring system for setup quality
+
+**src/utils/agent_logger.py**
+- Agent-specific logging (Claude, Gemini, Cursor, etc.)
+- Separate log files per agent
+- Tracks agent requests, analysis results, timestamps
+- Log rotation and retention policies
 
 ### Configuration Files
 
@@ -167,6 +174,22 @@ config/
   trading_config.yaml      - Account size, risk params, ICT thresholds
   mcp_server_config.yaml   - TradingView credentials, connection settings
   skills_config.yaml       - Skill-specific settings
+  logging_config.yaml      - Agent-specific logging configuration
+```
+
+### Logging Structure
+
+```
+logs/
+  claude/
+    2026-01-06.log         - Claude agent daily log
+    2026-01-05.log         - Previous day
+  gemini/
+    2026-01-06.log         - Gemini agent daily log
+  cursor/
+    2026-01-06.log         - Cursor agent daily log
+  mcp_server/
+    2026-01-06.log         - MCP server logs
 ```
 
 ### Delete
@@ -263,6 +286,8 @@ Claude → User: "1. ES=F - Bullish FVG + order block (9/10)
 4. **User Experience:** Non-technical user can chat with Claude to get trade setups
 5. **Confluence:** System correlates ICT patterns with TradingView context
 6. **No GUI:** Streamlit completely removed, interaction via Claude only
+7. **Data Freshness:** System validates data is recent before analysis (< 5 min old)
+8. **Agent Logging:** Each agent (Claude, Gemini, Cursor) has separate audit logs
 
 ## Future Enhancements
 
