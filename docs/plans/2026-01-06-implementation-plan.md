@@ -1428,7 +1428,607 @@ git commit -m "feat: create MCP client helper for parsing tool responses"
 
 ---
 
-### Task 9: Create Confluence Analyzer
+### Task 9: Create Agent Logger
+
+**Files:**
+- Create: `src/utils/agent_logger.py`
+- Create: `config/logging_config.yaml`
+- Create: `tests/test_agent_logger.py`
+
+**Step 1: Create logging configuration**
+
+Create `config/logging_config.yaml`:
+```yaml
+# Agent Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+  agents:
+    claude:
+      enabled: true
+      log_dir: "logs/claude"
+      retention_days: 30
+
+    gemini:
+      enabled: true
+      log_dir: "logs/gemini"
+      retention_days: 30
+
+    cursor:
+      enabled: true
+      log_dir: "logs/cursor"
+      retention_days: 30
+
+  mcp_server:
+    enabled: true
+    log_dir: "logs/mcp_server"
+    retention_days: 30
+```
+
+**Step 2: Write test for agent logger**
+
+Create `tests/test_agent_logger.py`:
+```python
+"""Tests for agent logger."""
+
+import pytest
+from pathlib import Path
+from src.utils.agent_logger import AgentLogger
+
+
+def test_agent_logger_creates_log_file(tmp_path):
+    """Test that AgentLogger creates agent-specific log files."""
+    log_dir = tmp_path / "logs"
+    logger = AgentLogger(agent_name="claude", log_dir=str(log_dir))
+
+    logger.log_request("analyze_patterns", {"symbol": "NQ=F"})
+
+    # Check log file exists
+    claude_log_dir = log_dir / "claude"
+    assert claude_log_dir.exists()
+
+    # Check log file created
+    log_files = list(claude_log_dir.glob("*.log"))
+    assert len(log_files) > 0
+
+
+def test_agent_logger_logs_analysis(tmp_path):
+    """Test that AgentLogger logs analysis results."""
+    log_dir = tmp_path / "logs"
+    logger = AgentLogger(agent_name="claude", log_dir=str(log_dir))
+
+    analysis_result = {
+        "patterns_found": 3,
+        "execution_time": 1.23
+    }
+
+    logger.log_analysis("analyze_patterns", analysis_result)
+
+    # Verify log contains entry
+    log_file = list((log_dir / "claude").glob("*.log"))[0]
+    content = log_file.read_text()
+    assert "analyze_patterns" in content
+    assert "patterns_found" in content
+```
+
+**Step 3: Run test to verify it fails**
+
+Run: `pytest tests/test_agent_logger.py -v`
+Expected: FAIL (module doesn't exist)
+
+**Step 4: Implement agent logger**
+
+Create `src/utils/agent_logger.py`:
+```python
+"""Agent-specific logging system."""
+
+import logging
+import json
+from pathlib import Path
+from datetime import datetime, timedelta
+from typing import Any, Dict, Optional
+from logging.handlers import RotatingFileHandler
+
+
+class AgentLogger:
+    """
+    Logging system for tracking agent interactions.
+
+    Each agent (Claude, Gemini, Cursor) gets its own log directory
+    with daily rotating log files.
+    """
+
+    def __init__(
+        self,
+        agent_name: str,
+        log_dir: str = "logs",
+        retention_days: int = 30,
+        level: str = "INFO"
+    ):
+        """
+        Initialize agent logger.
+
+        Args:
+            agent_name: Name of the agent (e.g., 'claude', 'gemini', 'cursor')
+            log_dir: Base directory for logs
+            retention_days: Number of days to retain logs
+            level: Logging level
+        """
+        self.agent_name = agent_name.lower()
+        self.log_dir = Path(log_dir) / self.agent_name
+        self.retention_days = retention_days
+
+        # Create log directory
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+
+        # Setup logger
+        self.logger = self._setup_logger(level)
+
+        # Clean old logs
+        self._cleanup_old_logs()
+
+    def _setup_logger(self, level: str) -> logging.Logger:
+        """Setup logger with rotating file handler."""
+        logger = logging.getLogger(f"agent.{self.agent_name}")
+        logger.setLevel(getattr(logging, level.upper()))
+
+        # Remove existing handlers
+        logger.handlers = []
+
+        # Create log file with date
+        log_file = self.log_dir / f"{datetime.now().strftime('%Y-%m-%d')}.log"
+
+        # File handler with rotation (10MB per file, keep 5 backups)
+        file_handler = RotatingFileHandler(
+            log_file,
+            maxBytes=10 * 1024 * 1024,  # 10MB
+            backupCount=5
+        )
+
+        # Formatter
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        file_handler.setFormatter(formatter)
+
+        logger.addHandler(file_handler)
+
+        return logger
+
+    def log_request(self, skill_name: str, parameters: Dict[str, Any]) -> None:
+        """
+        Log an agent request.
+
+        Args:
+            skill_name: Name of the skill being called
+            parameters: Request parameters
+        """
+        self.logger.info(
+            f"REQUEST | Skill: {skill_name} | Params: {json.dumps(parameters)}"
+        )
+
+    def log_analysis(
+        self,
+        skill_name: str,
+        result: Dict[str, Any],
+        execution_time: Optional[float] = None
+    ) -> None:
+        """
+        Log analysis results.
+
+        Args:
+            skill_name: Name of the skill
+            result: Analysis result dictionary
+            execution_time: Execution time in seconds
+        """
+        log_data = {
+            "skill": skill_name,
+            "result_summary": self._summarize_result(result),
+            "execution_time": execution_time
+        }
+
+        self.logger.info(
+            f"ANALYSIS | {json.dumps(log_data)}"
+        )
+
+    def log_error(
+        self,
+        skill_name: str,
+        error: Exception,
+        context: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """
+        Log an error.
+
+        Args:
+            skill_name: Name of the skill where error occurred
+            error: Exception object
+            context: Additional context
+        """
+        error_data = {
+            "skill": skill_name,
+            "error_type": type(error).__name__,
+            "error_message": str(error),
+            "context": context or {}
+        }
+
+        self.logger.error(
+            f"ERROR | {json.dumps(error_data)}",
+            exc_info=True
+        )
+
+    def log_data_fetch(
+        self,
+        source: str,
+        symbol: str,
+        bars: int,
+        timestamp: datetime
+    ) -> None:
+        """
+        Log data fetch operations.
+
+        Args:
+            source: Data source (e.g., 'tradingview', 'mcp')
+            symbol: Trading symbol
+            bars: Number of bars fetched
+            timestamp: Data timestamp
+        """
+        fetch_data = {
+            "source": source,
+            "symbol": symbol,
+            "bars": bars,
+            "data_timestamp": timestamp.isoformat(),
+            "age_seconds": (datetime.now() - timestamp).total_seconds()
+        }
+
+        self.logger.info(
+            f"DATA_FETCH | {json.dumps(fetch_data)}"
+        )
+
+    def _summarize_result(self, result: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a summary of analysis results for logging."""
+        summary = {}
+
+        if "patterns_found" in result:
+            summary["patterns_found"] = result["patterns_found"]
+
+        if "fair_value_gaps" in result:
+            summary["fvg_count"] = len(result["fair_value_gaps"])
+
+        if "order_blocks" in result:
+            summary["ob_count"] = len(result["order_blocks"])
+
+        if "error" in result:
+            summary["error"] = result["error"]
+
+        return summary
+
+    def _cleanup_old_logs(self) -> None:
+        """Remove log files older than retention period."""
+        cutoff_date = datetime.now() - timedelta(days=self.retention_days)
+
+        for log_file in self.log_dir.glob("*.log*"):
+            try:
+                # Parse date from filename (YYYY-MM-DD.log)
+                date_str = log_file.stem.split('.')[0]
+                file_date = datetime.strptime(date_str, '%Y-%m-%d')
+
+                if file_date < cutoff_date:
+                    log_file.unlink()
+                    self.logger.info(f"Deleted old log file: {log_file.name}")
+            except (ValueError, IndexError):
+                # Skip files that don't match expected format
+                continue
+
+
+def get_agent_logger(agent_name: str) -> AgentLogger:
+    """
+    Get or create an agent logger.
+
+    Args:
+        agent_name: Name of the agent
+
+    Returns:
+        AgentLogger instance
+    """
+    # Load config if available
+    try:
+        from .config_loader import ConfigLoader
+        loader = ConfigLoader()
+        config = loader.load('logging_config.yaml')
+
+        agent_config = config.get('logging', {}).get('agents', {}).get(agent_name, {})
+
+        return AgentLogger(
+            agent_name=agent_name,
+            log_dir=agent_config.get('log_dir', f'logs/{agent_name}'),
+            retention_days=agent_config.get('retention_days', 30),
+            level=config.get('logging', {}).get('level', 'INFO')
+        )
+    except Exception:
+        # Fallback to defaults if config not available
+        return AgentLogger(agent_name=agent_name)
+```
+
+**Step 5: Run tests**
+
+Run: `pytest tests/test_agent_logger.py -v`
+Expected: PASS
+
+**Step 6: Commit**
+
+```bash
+git add src/utils/agent_logger.py config/logging_config.yaml tests/test_agent_logger.py
+git commit -m "feat: create agent-specific logging system for Claude, Gemini, Cursor"
+```
+
+---
+
+### Task 10: Add Data Freshness Validation to MCP Client
+
+**Files:**
+- Modify: `src/utils/mcp_client.py`
+- Modify: `tests/test_mcp_client.py`
+
+**Step 1: Write test for data freshness validation**
+
+Add to `tests/test_mcp_client.py`:
+```python
+from datetime import datetime, timedelta
+
+
+def test_validate_data_freshness_accepts_recent_data():
+    """Test that recent data passes freshness validation."""
+    chart_json = json.dumps({
+        'symbol': 'NQ=F',
+        'bars': [
+            {
+                'timestamp': datetime.now().isoformat(),
+                'open': 100, 'high': 102, 'low': 99, 'close': 101, 'volume': 1000
+            }
+        ]
+    })
+
+    is_fresh = MCPClient.validate_data_freshness(chart_json, max_age_minutes=5)
+    assert is_fresh is True
+
+
+def test_validate_data_freshness_rejects_stale_data():
+    """Test that old data fails freshness validation."""
+    old_time = datetime.now() - timedelta(minutes=10)
+    chart_json = json.dumps({
+        'symbol': 'NQ=F',
+        'bars': [
+            {
+                'timestamp': old_time.isoformat(),
+                'open': 100, 'high': 102, 'low': 99, 'close': 101, 'volume': 1000
+            }
+        ]
+    })
+
+    is_fresh = MCPClient.validate_data_freshness(chart_json, max_age_minutes=5)
+    assert is_fresh is False
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `pytest tests/test_mcp_client.py::test_validate_data_freshness_accepts_recent_data -v`
+Expected: FAIL (method doesn't exist)
+
+**Step 3: Add data freshness validation to MCPClient**
+
+Modify `src/utils/mcp_client.py`:
+```python
+"""MCP client helper for Claude skills."""
+
+import json
+from typing import Any, Dict, List, Optional
+from datetime import datetime, timedelta
+import pandas as pd
+
+
+class MCPClient:
+    """Helper for calling MCP tools from Claude skills."""
+
+    @staticmethod
+    def parse_chart_data(chart_json: str) -> pd.DataFrame:
+        """
+        Parse chart data from MCP response to DataFrame.
+
+        Args:
+            chart_json: JSON string from get_active_chart tool
+
+        Returns:
+            DataFrame with OHLCV data
+        """
+        data = json.loads(chart_json)
+
+        if not data.get('bars'):
+            return pd.DataFrame()
+
+        # Convert bars to DataFrame
+        df = pd.DataFrame(data['bars'])
+
+        # Set timestamp as index
+        if 'timestamp' in df.columns:
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            df = df.set_index('timestamp')
+
+        # Rename columns to match expected format
+        df = df.rename(columns={
+            'open': 'Open',
+            'high': 'High',
+            'low': 'Low',
+            'close': 'Close',
+            'volume': 'Volume'
+        })
+
+        return df
+
+    @staticmethod
+    def validate_data_freshness(
+        chart_json: str,
+        max_age_minutes: int = 5
+    ) -> bool:
+        """
+        Validate that chart data is recent enough for analysis.
+
+        Args:
+            chart_json: JSON string from get_active_chart tool
+            max_age_minutes: Maximum acceptable age in minutes
+
+        Returns:
+            True if data is fresh, False otherwise
+        """
+        try:
+            data = json.loads(chart_json)
+            bars = data.get('bars', [])
+
+            if not bars:
+                return False
+
+            # Get the most recent bar timestamp
+            last_bar = bars[-1]
+            last_timestamp = pd.to_datetime(last_bar['timestamp'])
+
+            # Calculate age
+            now = datetime.now()
+            if last_timestamp.tzinfo:
+                # If timestamp is timezone-aware, make now timezone-aware too
+                import pytz
+                now = now.replace(tzinfo=pytz.UTC)
+
+            age = now - last_timestamp
+            max_age = timedelta(minutes=max_age_minutes)
+
+            return age <= max_age
+
+        except (KeyError, ValueError, TypeError) as e:
+            # If we can't parse timestamp, consider data invalid
+            return False
+
+    @staticmethod
+    def get_data_age(chart_json: str) -> Optional[timedelta]:
+        """
+        Get the age of the chart data.
+
+        Args:
+            chart_json: JSON string from get_active_chart tool
+
+        Returns:
+            Timedelta representing data age, or None if unable to determine
+        """
+        try:
+            data = json.loads(chart_json)
+            bars = data.get('bars', [])
+
+            if not bars:
+                return None
+
+            last_bar = bars[-1]
+            last_timestamp = pd.to_datetime(last_bar['timestamp'])
+
+            now = datetime.now()
+            if last_timestamp.tzinfo:
+                import pytz
+                now = now.replace(tzinfo=pytz.UTC)
+
+            return now - last_timestamp
+
+        except (KeyError, ValueError, TypeError):
+            return None
+
+    @staticmethod
+    def parse_indicators(indicators_json: str) -> Dict[str, Any]:
+        """
+        Parse indicators from MCP response.
+
+        Args:
+            indicators_json: JSON string from get_indicators tool
+
+        Returns:
+            Dictionary of indicator values
+        """
+        data = json.loads(indicators_json)
+        return data.get('indicators', {})
+
+    @staticmethod
+    def parse_drawings(drawings_json: str) -> List[Dict[str, Any]]:
+        """
+        Parse drawings from MCP response.
+
+        Args:
+            drawings_json: JSON string from get_drawings tool
+
+        Returns:
+            List of drawing objects
+        """
+        return json.loads(drawings_json)
+
+    @staticmethod
+    def parse_watchlist(watchlist_json: str) -> List[str]:
+        """
+        Parse watchlist from MCP response.
+
+        Args:
+            watchlist_json: JSON string from get_watchlist tool
+
+        Returns:
+            List of symbols
+        """
+        data = json.loads(watchlist_json)
+        return [item['symbol'] for item in data if 'symbol' in item]
+```
+
+**Step 4: Run tests**
+
+Run: `pytest tests/test_mcp_client.py -v`
+Expected: PASS
+
+**Step 5: Update skills to validate data freshness**
+
+Modify `skills/analyze-ict-patterns/analyze.py` to add validation:
+```python
+def analyze_patterns(chart_data_json: str) -> dict:
+    """
+    Analyze ICT patterns from chart data.
+
+    Args:
+        chart_data_json: JSON string from get_active_chart MCP tool
+
+    Returns:
+        Dictionary with detected patterns
+    """
+    # Validate data freshness FIRST
+    if not MCPClient.validate_data_freshness(chart_data_json, max_age_minutes=5):
+        data_age = MCPClient.get_data_age(chart_data_json)
+        age_str = f"{data_age.total_seconds() / 60:.1f} minutes" if data_age else "unknown"
+        return {
+            "error": f"Data is stale (age: {age_str}). Please refresh your chart.",
+            "stale_data": True
+        }
+
+    # Parse chart data
+    df = MCPClient.parse_chart_data(chart_data_json)
+
+    if df.empty:
+        return {"error": "No chart data available"}
+
+    # ... rest of existing code ...
+```
+
+**Step 6: Commit**
+
+```bash
+git add src/utils/mcp_client.py tests/test_mcp_client.py skills/analyze-ict-patterns/analyze.py
+git commit -m "feat: add data freshness validation before analysis"
+```
+
+---
+
+### Task 11: Create Confluence Analyzer
 
 **Files:**
 - Create: `src/utils/confluence_analyzer.py`
