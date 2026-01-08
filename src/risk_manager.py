@@ -12,6 +12,8 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
+from utils.config_loader import ConfigLoader
+
 
 @dataclass
 class Position:
@@ -31,14 +33,27 @@ class RiskManager:
     Manages risk for trading operations.
     """
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: Optional[dict] = None, config_file: Optional[str] = None):
         """
         Initialize the Risk Manager.
 
         Args:
-            config: Configuration dictionary with risk parameters
+            config: Configuration dictionary with risk parameters (takes priority)
+            config_file: Path to configuration file (e.g., 'trading_config.yaml')
         """
-        self.config = config or self._default_config()
+        if config:
+            self.config = config
+        elif config_file:
+            loader = ConfigLoader()
+            full_config = loader.load(config_file)
+            # Extract risk and account sections
+            self.config = {
+                **full_config.get('risk', {}),
+                **full_config.get('account', {})
+            }
+        else:
+            self.config = self._default_config()
+
         self.logger = logging.getLogger(__name__)
         self.positions: list[Position] = []
 
@@ -53,6 +68,7 @@ class RiskManager:
             "take_profit_ratio": 2,  # 1:2 risk/reward
             "max_daily_loss": 0.05,  # 5% max daily loss
             "max_drawdown": 0.20,  # 20% max drawdown
+            "initial_capital": 10000,
         }
 
     def calculate_position_size(

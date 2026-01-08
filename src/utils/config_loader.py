@@ -1,165 +1,53 @@
-"""
-Configuration Loader Utility
+"""Configuration loader utility."""
 
-Handles loading and validating configuration from YAML files.
-"""
-
-import logging
 import os
-from typing import Any, Optional
-
 import yaml
+from pathlib import Path
+from typing import Any, Dict
 
 
 class ConfigLoader:
-    """
-    Loads and validates configuration for the ICT Trading Agent.
-    """
+    """Loads and manages YAML configuration files."""
 
-    DEFAULT_CONFIG_PATH = "config/config.yaml"
-    EXAMPLE_CONFIG_PATH = "config/config.example.yaml"
-
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_dir: str = "config"):
         """
-        Initialize the config loader.
+        Initialize config loader.
 
         Args:
-            config_path: Path to configuration file
+            config_dir: Directory containing config files
         """
-        self.config_path = config_path or self.DEFAULT_CONFIG_PATH
-        self.logger = logging.getLogger(__name__)
-        self.config = None
+        self.config_dir = Path(config_dir)
 
-    def load(self) -> dict[str, Any]:
+    def load(self, filename: str) -> Dict[str, Any]:
         """
-        Load configuration from file.
+        Load a YAML configuration file.
+
+        Args:
+            filename: Name of config file (e.g., 'trading_config.yaml')
 
         Returns:
             Configuration dictionary
         """
-        if not os.path.exists(self.config_path):
-            self.logger.warning(f"Config file not found at {self.config_path}")
+        config_path = self.config_dir / filename
 
-            # Try to load example config
-            if os.path.exists(self.EXAMPLE_CONFIG_PATH):
-                self.logger.info(f"Loading example config from {self.EXAMPLE_CONFIG_PATH}")
-                self.config_path = self.EXAMPLE_CONFIG_PATH
-            else:
-                self.logger.warning("No config file found, using defaults")
-                return self._default_config()
+        if not config_path.exists():
+            raise FileNotFoundError(f"Config file not found: {config_path}")
 
-        try:
-            with open(self.config_path) as f:
-                self.config = yaml.safe_load(f)
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
 
-            self.logger.info(f"Configuration loaded from {self.config_path}")
+        # Replace environment variables
+        config = self._replace_env_vars(config)
 
-            # Validate config
-            self._validate_config()
+        return config
 
-            return self.config
-
-        except Exception as e:
-            self.logger.error(f"Error loading config: {e}")
-            return self._default_config()
-
-    def get(self, key: str, default: Any = None) -> Any:
-        """
-        Get a configuration value.
-
-        Args:
-            key: Configuration key (supports dot notation, e.g., 'trading.symbol')
-            default: Default value if key not found
-
-        Returns:
-            Configuration value
-        """
-        if self.config is None:
-            self.load()
-
-        keys = key.split(".")
-        value = self.config
-
-        for k in keys:
-            if isinstance(value, dict) and k in value:
-                value = value[k]
-            else:
-                return default
-
-        return value
-
-    def _validate_config(self) -> None:
-        """Validate configuration structure and values."""
-        if not self.config:
-            return
-
-        required_sections = ["trading", "patterns", "risk", "backtesting"]
-
-        for section in required_sections:
-            if section not in self.config:
-                self.logger.warning(f"Missing required config section: {section}")
-
-    def _default_config(self) -> dict[str, Any]:
-        """
-        Get default configuration.
-
-        Returns:
-            Default configuration dictionary
-        """
-        return {
-            "trading": {"symbol": "NQ=F", "timeframe": "1h", "lookback_period": 100},
-            "patterns": {
-                "fvg_min_size": 0.001,
-                "orderblock_strength": 3,
-                "liquidity_threshold": 0.05,
-                "swing_window": 5,
-            },
-            "risk": {
-                "risk_per_trade": 0.02,
-                "max_positions": 3,
-                "stop_loss_atr_multiplier": 2,
-                "take_profit_ratio": 2,
-            },
-            "data": {"primary_source": "yfinance", "cache_duration": 300},
-            "alerts": {"enabled": True, "webhook_url": "", "email_enabled": False},
-            "backtesting": {
-                "initial_capital": 10000,
-                "commission": 2.0,
-                "slippage": 0.001,
-                "start_date": "2023-01-01",
-                "end_date": "2023-12-31",
-            },
-            "logging": {
-                "level": "INFO",
-                "file": "logs/ict_agent.log",
-                "max_size": "10MB",
-                "backup_count": 5,
-            },
-            "dashboard": {"port": 8501, "host": "localhost", "auto_refresh": 30, "theme": "dark"},
-        }
-
-    def save(self, config: dict[str, Any], path: Optional[str] = None) -> bool:
-        """
-        Save configuration to file.
-
-        Args:
-            config: Configuration dictionary to save
-            path: Optional path to save to
-
-        Returns:
-            True if successful
-        """
-        save_path = path or self.config_path
-
-        try:
-            os.makedirs(os.path.dirname(save_path), exist_ok=True)
-
-            with open(save_path, "w") as f:
-                yaml.dump(config, f, default_flow_style=False, sort_keys=False)
-
-            self.logger.info(f"Configuration saved to {save_path}")
-            return True
-
-        except Exception as e:
-            self.logger.error(f"Error saving config: {e}")
-            return False
+    def _replace_env_vars(self, config: Dict) -> Dict:
+        """Replace ${ENV_VAR} patterns with environment variables."""
+        if isinstance(config, dict):
+            return {k: self._replace_env_vars(v) for k, v in config.items()}
+        elif isinstance(config, list):
+            return [self._replace_env_vars(item) for item in config]
+        elif isinstance(config, str) and config.startswith('${') and config.endswith('}'):
+            env_var = config[2:-1]
+            return os.getenv(env_var, config)
+        return config
