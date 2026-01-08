@@ -1,0 +1,12 @@
+# TradingView MCP Server Configuration
+tradingview:
+  username: ""  # Set via environment variable TV_USERNAME
+  password: ""  # Set via environment variable TV_PASSWORD
+
+server:
+  host: "localhost"
+  port: 8080
+
+data:
+  default_bars: 500
+  cache_duration: 60  # seconds

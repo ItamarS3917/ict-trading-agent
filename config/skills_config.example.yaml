@@ -1,0 +1,16 @@
+# Claude Skills Configuration
+skills:
+  analyze-ict-patterns:
+    enabled: true
+    min_pattern_strength: 5
+
+  calculate-risk:
+    enabled: true
+
+  generate-trade-setup:
+    enabled: true
+    min_confluence_factors: 2
+
+  monitor-workspace:
+    enabled: true
+    max_symbols: 10

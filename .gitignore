@@ -105,6 +105,9 @@ dmypy.json
 
 # Project specific
 config/config.yaml
+config/trading_config.yaml
+config/mcp_server_config.yaml
+config/skills_config.yaml
 data/*.csv
 data/*.json
 data/cache/

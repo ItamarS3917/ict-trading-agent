@@ -1,0 +1,17 @@
+# Trading Configuration
+account:
+  initial_capital: 10000
+  currency: "USD"
+
+risk:
+  risk_per_trade: 0.02  # 2%
+  max_positions: 3
+  max_portfolio_risk: 0.06  # 6%
+  stop_loss_atr_multiplier: 2
+  take_profit_ratio: 2  # 1:2 R:R
+
+patterns:
+  fvg_min_size: 0.001
+  orderblock_strength: 3
+  liquidity_threshold: 0.05
+  swing_window: 5
