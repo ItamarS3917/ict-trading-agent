@@ -6,6 +6,7 @@ Fair Value Gaps, Order Blocks, and Liquidity Pools.
 """
 
 import pandas as pd
+from typing import Optional
 
 
 class PatternDetector:
@@ -22,7 +23,11 @@ class PatternDetector:
         """
         self.config = config
 
-    def detect_fair_value_gaps(self, df: pd.DataFrame) -> list[dict]:
+    def detect_fair_value_gaps(
+        self,
+        df: pd.DataFrame,
+        drawings: Optional[list] = None
+    ) -> list[dict]:
         """
         Detect Fair Value Gaps (FVGs) in price data.
 
@@ -30,7 +35,8 @@ class PatternDetector:
         and the low of another candle that hasn't been filled.
 
         Args:
-            df: OHLC DataFrame
+            df: OHLCV DataFrame with columns ['Open', 'High', 'Low', 'Close', 'Volume']
+            drawings: Optional TradingView drawings for confluence analysis
 
         Returns:
             List of detected FVG patterns
@@ -55,10 +61,14 @@ class PatternDetector:
                 gap_size = (prev_candle["Low"] - next_candle["High"]) / next_candle["High"]
 
                 if gap_size >= min_gap_size:
+                    confluence = self._check_drawing_confluence(
+                        prev_candle["Low"], next_candle["High"], drawings
+                    ) if drawings else False
+
                     fvg = {
                         "type": "Fair Value Gap",
                         "direction": "BULLISH",
-                        "timestamp": df.index[i],
+                        "timestamp": df.index[i] if hasattr(df.index[i], 'isoformat') else str(i),
                         "gap_high": prev_candle["Low"],
                         "gap_low": next_candle["High"],
                         "gap_size": gap_size,
@@ -67,6 +77,7 @@ class PatternDetector:
                         "take_profit": prev_candle["Low"] + (gap_size * prev_candle["Low"] * 2),
                         "strength": self._calculate_fvg_strength(df, i, gap_size),
                         "filled": False,
+                        "confluence": confluence,
                     }
                     fvgs.append(fvg)
 
@@ -78,18 +89,23 @@ class PatternDetector:
                 gap_size = (next_candle["Low"] - prev_candle["High"]) / prev_candle["High"]
 
                 if gap_size >= min_gap_size:
+                    confluence = self._check_drawing_confluence(
+                        next_candle["Low"], prev_candle["High"], drawings
+                    ) if drawings else False
+
                     fvg = {
                         "type": "Fair Value Gap",
                         "direction": "BEARISH",
-                        "timestamp": df.index[i],
+                        "timestamp": df.index[i] if hasattr(df.index[i], 'isoformat') else str(i),
                         "gap_high": next_candle["Low"],
                         "gap_low": prev_candle["High"],
                         "gap_size": gap_size,
-                        "entry_price": prev_candle["High"],
+                        "entry_price": next_candle["Low"],
                         "stop_loss": next_candle["Low"] + (next_candle["Low"] * 0.001),
                         "take_profit": next_candle["Low"] - (gap_size * next_candle["Low"] * 2),
                         "strength": self._calculate_fvg_strength(df, i, gap_size),
                         "filled": False,
+                        "confluence": confluence,
                     }
                     fvgs.append(fvg)
 
@@ -284,3 +300,33 @@ class PatternDetector:
         # Check for consecutive lower closes
         closes = df.iloc[index - min_strength : index + 1]["Close"]
         return all(closes.iloc[i] < closes.iloc[i - 1] for i in range(1, len(closes)))
+
+    def _check_drawing_confluence(
+        self,
+        level_high: float,
+        level_low: float,
+        drawings: Optional[list]
+    ) -> bool:
+        """
+        Check if any TradingView drawings align with the price level.
+
+        Args:
+            level_high: Upper price level
+            level_low: Lower price level
+            drawings: List of TradingView drawing objects
+
+        Returns:
+            True if confluence found, False otherwise
+        """
+        if not drawings:
+            return False
+
+        # Check if any trendline, support/resistance intersects with the level
+        for drawing in drawings:
+            if drawing.get('type') in ['trendline', 'horizontal_line', 'rectangle']:
+                # Simplified check - actual implementation would need geometry
+                drawing_price = drawing.get('price', 0)
+                if level_low <= drawing_price <= level_high:
+                    return True
+
+        return False
