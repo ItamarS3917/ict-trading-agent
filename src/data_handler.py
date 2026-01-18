@@ -9,6 +9,6 @@ data cleaning, validation, and caching utilities.
 """
 
 # Import from new location for backwards compatibility
-from utils.data_utils import DataUtils, DataHandler
+from utils.data_utils import DataHandler, DataUtils
 
 __all__ = ["DataHandler", "DataUtils"]

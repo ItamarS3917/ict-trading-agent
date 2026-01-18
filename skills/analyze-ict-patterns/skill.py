@@ -15,10 +15,10 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from pattern_detector import PatternDetector
-from utils.mcp_client import MCPClient
-from utils.confluence_analyzer import ConfluenceAnalyzer
-from utils.data_freshness import DataFreshnessValidator, DataFreshnessError
 from utils.agent_logger import get_agent_logger
+from utils.confluence_analyzer import ConfluenceAnalyzer
+from utils.data_freshness import DataFreshnessError, DataFreshnessValidator
+from utils.mcp_client import MCPClient
 
 
 class AnalyzeICTPatterns:
@@ -119,9 +119,7 @@ class AnalyzeICTPatterns:
             if drawings_json:
                 drawings = MCPClient.parse_drawings(drawings_json)
 
-            analyzed_patterns = self.confluence_analyzer.analyze(
-                all_patterns, indicators, drawings
-            )
+            analyzed_patterns = self.confluence_analyzer.analyze(all_patterns, indicators, drawings)
 
             # Separate by type
             result = {
@@ -131,9 +129,15 @@ class AnalyzeICTPatterns:
                 "analyzed_at": datetime.now().isoformat(),
                 "data_age_seconds": self.freshness_validator.get_age_seconds(chart_data),
                 "patterns": {
-                    "fair_value_gaps": [p for p in analyzed_patterns if p.get("type") == "Fair Value Gap"],
-                    "order_blocks": [p for p in analyzed_patterns if p.get("type") == "Order Block"],
-                    "liquidity_pools": [p for p in analyzed_patterns if p.get("type") == "Liquidity Pool"],
+                    "fair_value_gaps": [
+                        p for p in analyzed_patterns if p.get("type") == "Fair Value Gap"
+                    ],
+                    "order_blocks": [
+                        p for p in analyzed_patterns if p.get("type") == "Order Block"
+                    ],
+                    "liquidity_pools": [
+                        p for p in analyzed_patterns if p.get("type") == "Liquidity Pool"
+                    ],
                 },
                 "summary": self._generate_summary(analyzed_patterns, metadata),
                 "best_setups": self.confluence_analyzer.get_best_setups(
@@ -162,9 +166,7 @@ class AnalyzeICTPatterns:
                 "recommendation": "An error occurred during analysis. Please check your data and try again.",
             }
 
-    def _generate_summary(
-        self, patterns: list[dict[str, Any]], metadata: dict[str, Any]
-    ) -> str:
+    def _generate_summary(self, patterns: list[dict[str, Any]], metadata: dict[str, Any]) -> str:
         """Generate a natural language summary of the analysis."""
         fvg_count = len([p for p in patterns if p.get("type") == "Fair Value Gap"])
         ob_count = len([p for p in patterns if p.get("type") == "Order Block"])

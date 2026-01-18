@@ -6,10 +6,9 @@ Data fetching is handled by MCP server - this module processes the data.
 """
 
 import json
-import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 import pandas as pd
 
@@ -96,10 +95,7 @@ class DataUtils:
             return False
 
         # Check price relationships
-        if (df["High"] < df["Low"]).any():
-            return False
-
-        return True
+        return not (df["High"] < df["Low"]).any()
 
     def calculate_atr(self, df: pd.DataFrame, period: int = 14) -> pd.Series:
         """
@@ -179,8 +175,7 @@ class DataUtils:
             data: Analysis data to cache
         """
         cache_file = (
-            self.cache_dir
-            / f"{symbol}_{analysis_type}_{datetime.now().strftime('%Y%m%d')}.json"
+            self.cache_dir / f"{symbol}_{analysis_type}_{datetime.now().strftime('%Y%m%d')}.json"
         )
 
         with open(cache_file, "w") as f:
@@ -210,14 +205,13 @@ class DataUtils:
             Cached data or None if not found/expired
         """
         cache_file = (
-            self.cache_dir
-            / f"{symbol}_{analysis_type}_{datetime.now().strftime('%Y%m%d')}.json"
+            self.cache_dir / f"{symbol}_{analysis_type}_{datetime.now().strftime('%Y%m%d')}.json"
         )
 
         if not cache_file.exists():
             return None
 
-        with open(cache_file, "r") as f:
+        with open(cache_file) as f:
             cached = json.load(f)
 
         # Check if expired

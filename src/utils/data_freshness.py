@@ -46,8 +46,8 @@ class DataFreshnessValidator:
 
         try:
             fetch_time = datetime.fromisoformat(fetched_at)
-        except ValueError:
-            raise DataFreshnessError(f"Invalid timestamp format: {fetched_at}")
+        except ValueError as e:
+            raise DataFreshnessError(f"Invalid timestamp format: {fetched_at}") from e
 
         age = datetime.now() - fetch_time
 

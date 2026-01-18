@@ -47,9 +47,7 @@ class ConfluenceAnalyzer:
             score = 0
 
             # Check indicator confluence
-            indicator_confluence = self._check_indicator_confluence(
-                pattern, indicators
-            )
+            indicator_confluence = self._check_indicator_confluence(pattern, indicators)
             confluence_factors.extend(indicator_confluence)
             score += len(indicator_confluence)
 
@@ -148,10 +146,10 @@ class ConfluenceAnalyzer:
                 # Check if drawing aligns with pattern (within 0.5%)
                 tolerance = abs(pattern_high - pattern_low) * 0.5
 
-                if abs(drawing_price - pattern_high) <= tolerance:
-                    label = drawing.get("label", "S/R line")
-                    factors.append(f"Aligns with {label} at {drawing_price:.2f}")
-                elif abs(drawing_price - pattern_low) <= tolerance:
+                if (
+                    abs(drawing_price - pattern_high) <= tolerance
+                    or abs(drawing_price - pattern_low) <= tolerance
+                ):
                     label = drawing.get("label", "S/R line")
                     factors.append(f"Aligns with {label} at {drawing_price:.2f}")
 
