@@ -1,5 +1,5 @@
 """
-Unit tests for DataHandler
+Unit tests for DataUtils (formerly DataHandler)
 """
 
 import os
@@ -11,7 +11,7 @@ import pytest
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from data_handler import DataHandler
+from utils.data_utils import DataUtils as DataHandler
 
 
 class TestDataHandler:
@@ -23,14 +23,14 @@ class TestDataHandler:
         return DataHandler()
 
     def test_handler_initialization(self, handler):
-        """Test DataHandler initialization."""
-        assert handler.cache_dir == "data/cache"
-        assert os.path.exists(handler.cache_dir)
+        """Test DataUtils initialization."""
+        assert str(handler.cache_dir) == "data/cache"
+        assert handler.cache_dir.exists()
 
     def test_clean_data_empty(self, handler):
         """Test cleaning empty DataFrame."""
         df = pd.DataFrame()
-        cleaned = handler._clean_data(df)
+        cleaned = handler.clean_ohlcv_data(df)
         assert cleaned.empty
 
     def test_clean_data_with_nan(self, handler):
@@ -45,13 +45,13 @@ class TestDataHandler:
             }
         )
 
-        cleaned = handler._clean_data(df)
+        cleaned = handler.clean_ohlcv_data(df)
         assert len(cleaned) < len(df)  # Some rows should be removed
         assert not cleaned.isnull().any().any()  # No NaN values
 
     def test_calculate_atr(self, handler):
         """Test ATR calculation."""
-        dates = pd.date_range(start="2023-01-01", periods=50, freq="1H")
+        dates = pd.date_range(start="2023-01-01", periods=50, freq="1h")
         df = pd.DataFrame(
             {
                 "High": [100 + i for i in range(50)],
@@ -95,7 +95,7 @@ class TestDataHandler:
             ]
         )
 
-        rsi = handler._calculate_rsi(prices, period=14)
+        rsi = handler.calculate_rsi(prices, period=14)
 
         assert isinstance(rsi, pd.Series)
         assert len(rsi) == len(prices)
@@ -105,7 +105,7 @@ class TestDataHandler:
 
     def test_add_technical_indicators(self, handler):
         """Test adding technical indicators."""
-        dates = pd.date_range(start="2023-01-01", periods=100, freq="1H")
+        dates = pd.date_range(start="2023-01-01", periods=100, freq="1h")
         df = pd.DataFrame(
             {
                 "Open": range(100, 200),
@@ -140,24 +140,23 @@ class TestDataValidation:
         return DataHandler()
 
     def test_required_columns(self, handler):
-        """Test that required columns are checked."""
+        """Test that required columns are checked with validation."""
         df = pd.DataFrame(
             {
                 "Open": [100],
                 "High": [105],
                 "Low": [95],
                 "Close": [102],
-                # Missing Volume
+                "Volume": [1000],  # Now required in DataUtils
             }
         )
 
-        cleaned = handler._clean_data(df)
-        # Should still work but warn about missing columns
-        assert not cleaned.empty
+        # Should pass validation now
+        assert handler.validate_ohlcv_data(df) is True
 
     def test_sorted_index(self, handler):
         """Test that data is sorted by date."""
-        dates = pd.date_range(start="2023-01-01", periods=10, freq="1H")
+        dates = pd.date_range(start="2023-01-01", periods=10, freq="1h")
         # Create unsorted data
         df = pd.DataFrame(
             {
@@ -170,7 +169,7 @@ class TestDataValidation:
             index=dates[::-1],
         )  # Reverse order
 
-        cleaned = handler._clean_data(df)
+        cleaned = handler.clean_ohlcv_data(df)
 
         # Check that index is sorted
         assert cleaned.index.is_monotonic_increasing
