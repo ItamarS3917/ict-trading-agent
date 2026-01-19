@@ -1,9 +1,10 @@
 """Configuration loader utility."""
 
 import os
-import yaml
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
+
+import yaml
 
 
 class ConfigLoader:
@@ -18,7 +19,7 @@ class ConfigLoader:
         """
         self.config_dir = Path(config_dir)
 
-    def load(self, filename: str) -> Dict[str, Any]:
+    def load(self, filename: str) -> dict[str, Any]:
         """
         Load a YAML configuration file.
 
@@ -33,7 +34,7 @@ class ConfigLoader:
         if not config_path.exists():
             raise FileNotFoundError(f"Config file not found: {config_path}")
 
-        with open(config_path, 'r') as f:
+        with open(config_path) as f:
             config = yaml.safe_load(f)
 
         # Replace environment variables
@@ -41,13 +42,13 @@ class ConfigLoader:
 
         return config
 
-    def _replace_env_vars(self, config: Dict) -> Dict:
+    def _replace_env_vars(self, config: dict) -> dict:
         """Replace ${ENV_VAR} patterns with environment variables."""
         if isinstance(config, dict):
             return {k: self._replace_env_vars(v) for k, v in config.items()}
         elif isinstance(config, list):
             return [self._replace_env_vars(item) for item in config]
-        elif isinstance(config, str) and config.startswith('${') and config.endswith('}'):
+        elif isinstance(config, str) and config.startswith("${") and config.endswith("}"):
             env_var = config[2:-1]
             return os.getenv(env_var, config)
         return config

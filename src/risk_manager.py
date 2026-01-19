@@ -47,10 +47,7 @@ class RiskManager:
             loader = ConfigLoader()
             full_config = loader.load(config_file)
             # Extract risk and account sections
-            self.config = {
-                **full_config.get('risk', {}),
-                **full_config.get('account', {})
-            }
+            self.config = {**full_config.get("risk", {}), **full_config.get("account", {})}
         else:
             self.config = self._default_config()
 

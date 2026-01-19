@@ -11,16 +11,16 @@ import sys
 from pathlib import Path
 from typing import Any, Optional
 
+from mcp import types
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp import types
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from .tradingview_client import TradingViewClient
 from utils.config_loader import ConfigLoader
 
+from .tradingview_client import TradingViewClient
 
 logger = logging.getLogger(__name__)
 
@@ -85,16 +85,12 @@ class TradingViewMCPServer:
             """Handle tool calls."""
             if not self.tv_client:
                 return [
-                    types.TextContent(
-                        type="text", text="Error: TradingView client not initialized"
-                    )
+                    types.TextContent(type="text", text="Error: TradingView client not initialized")
                 ]
 
             try:
                 if name == "get_active_chart":
-                    result = await self.tv_client.get_active_chart(
-                        bars=arguments.get("bars", 500)
-                    )
+                    result = await self.tv_client.get_active_chart(bars=arguments.get("bars", 500))
                 elif name == "get_indicators":
                     result = await self.tv_client.get_indicators()
                 elif name == "get_drawings":
@@ -104,11 +100,7 @@ class TradingViewMCPServer:
                 elif name == "get_alerts":
                     result = await self.tv_client.get_alerts()
                 else:
-                    return [
-                        types.TextContent(
-                            type="text", text=f"Error: Unknown tool '{name}'"
-                        )
-                    ]
+                    return [types.TextContent(type="text", text=f"Error: Unknown tool '{name}'")]
 
                 return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
 

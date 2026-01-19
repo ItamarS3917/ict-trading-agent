@@ -8,8 +8,6 @@ import logging
 from datetime import datetime
 from typing import Any
 
-import pandas as pd
-
 logger = logging.getLogger(__name__)
 
 
@@ -86,9 +84,7 @@ class TradingViewClient:
         for idx, row in df.iterrows():
             bars_data.append(
                 {
-                    "timestamp": idx.isoformat()
-                    if hasattr(idx, "isoformat")
-                    else str(idx),
+                    "timestamp": idx.isoformat() if hasattr(idx, "isoformat") else str(idx),
                     "open": float(row.get("open", row.get("Open", 0))),
                     "high": float(row.get("high", row.get("High", 0))),
                     "low": float(row.get("low", row.get("Low", 0))),

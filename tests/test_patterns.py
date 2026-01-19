@@ -157,17 +157,18 @@ class TestPatternDetector:
 def sample_ohlcv_data():
     """Create sample OHLCV DataFrame for testing."""
     data = {
-        'Open': [100, 102, 101, 103, 105],
-        'High': [103, 104, 102, 106, 107],
-        'Low': [99, 101, 100, 102, 104],
-        'Close': [102, 101, 103, 105, 106],
-        'Volume': [1000, 1100, 900, 1200, 1300]
+        "Open": [100, 102, 101, 103, 105],
+        "High": [103, 104, 102, 106, 107],
+        "Low": [99, 101, 100, 102, 104],
+        "Close": [102, 101, 103, 105, 106],
+        "Volume": [1000, 1100, 900, 1200, 1300],
     }
     return pd.DataFrame(data)
 
+
 def test_pattern_detector_accepts_dataframe(sample_ohlcv_data):
     """Test that PatternDetector can work with raw DataFrame."""
-    config = {'fvg_min_size': 0.001}
+    config = {"fvg_min_size": 0.001}
     detector = PatternDetector(config)
 
     # Should not raise an error
