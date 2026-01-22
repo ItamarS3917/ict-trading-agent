@@ -77,6 +77,19 @@ python examples/backtest_example.py
 python examples/risk_management_example.py
 ```
 
+### MCP Server
+```bash
+# The MCP server is designed to be run by Claude via MCP protocol
+# It provides tools for accessing TradingView chart data
+
+# Test MCP server locally (runs in stub mode without authentication)
+python -m pytest tests/test_mcp_server.py -v
+
+# For production use with Claude:
+# Add to your Claude Desktop MCP settings or use via Claude API
+# The server will authenticate with TradingView when configured
+```
+
 ### Cleanup
 ```bash
 make clean  # Removes cache files, coverage reports, pytest cache
@@ -98,12 +111,18 @@ make clean  # Removes cache files, coverage reports, pytest cache
 - Identifies Order Blocks with strength scoring
 - Locates Liquidity Pools through volume analysis
 - Pattern validation and strength calculation
+- Accepts raw DataFrames with optional TradingView drawings for confluence analysis
 
 **DataHandler** (`src/data_handler.py`)
-- Fetches market data via yfinance API
-- Handles data caching in `data/cache/` directory
-- Provides both period-based and date-range data retrieval
-- Data cleaning and preparation for analysis
+- **DEPRECATED**: Now a backwards-compatible wrapper for `DataUtils`
+- Data fetching moved to MCP server integration
+- Use `DataUtils` from `src/utils/data_utils.py` for new code
+
+**DataUtils** (`src/utils/data_utils.py`)
+- Data cleaning, validation, and caching utilities
+- Processes OHLCV data from MCP server or other sources
+- ATR and RSI calculation helpers
+- Data validation and quality checks
 
 **Backtester** (`src/backtester.py`)
 - Historical strategy simulation with realistic execution
@@ -116,6 +135,7 @@ make clean  # Removes cache files, coverage reports, pytest cache
 - Stop loss/take profit calculations (ATR-based and custom)
 - Portfolio risk tracking with limits
 - Uses dataclass `Position` for trade representation
+- Accepts config dict OR config_file path via ConfigLoader
 
 **PerformanceReporter** (`src/performance_reporter.py`)
 - Generates comprehensive performance analytics
@@ -140,15 +160,55 @@ make clean  # Removes cache files, coverage reports, pytest cache
 - Rotating file logs with configurable levels
 - Logs stored in `logs/` directory
 
+**AgentLogger** (`src/utils/agent_logger.py`)
+- Agent-specific logging for Claude, Gemini, Cursor
+- Request/response tracking with timing
+- Context-aware logging with agent identification
+
+**ConfluenceAnalyzer** (`src/utils/confluence_analyzer.py`)
+- Multi-factor confluence scoring for trade setups
+- Aligns ICT patterns with TradingView indicators and drawings
+- Prioritizes high-probability setups based on confluence score
+
+**DataFreshnessValidator** (`src/utils/data_freshness.py`)
+- Validates data is recent (default: < 5 minutes old)
+- Prevents stale data from being used in analysis
+- Configurable maximum data age
+
+**MCPClient** (`src/utils/mcp_client.py`)
+- Parses MCP server responses to pandas DataFrames
+- Handles chart data, indicators, and drawings from TradingView
+
+### MCP Integration
+
+**TradingView MCP Server** (`mcp_server/server.py`)
+- Provides MCP tools for Claude to access TradingView chart data
+- Tools: `get_active_chart`, `get_indicators`, `get_drawings`, `get_watchlist`, `get_alerts`
+- Runs in stub mode when TradingView not authenticated (for testing)
+- Uses `tradingview-scraper` package for real data
+
+**TradingViewClient** (`mcp_server/tradingview_client.py`)
+- Client wrapper for TradingView data access
+- Supports both authenticated and stub modes
+- Returns structured data for MCP server
+
+**Claude Skills** (`skills/`)
+- `analyze-ict-patterns`: Detects FVGs, Order Blocks, and Liquidity Pools from TradingView charts
+  - Integrates PatternDetector, ConfluenceAnalyzer, DataFreshnessValidator
+  - Returns structured pattern data with confluence scoring and recommendations
+
 ### Data Flow
 
-1. **Market Analysis**:
+1. **TradingView → Claude Analysis** (MCP-based):
+   - TradingView MCP server fetches chart data/indicators/drawings → MCPClient parses to DataFrames → DataFreshnessValidator checks age → PatternDetector identifies patterns → ConfluenceAnalyzer scores setups → Structured recommendations returned
+
+2. **Traditional Market Analysis** (yfinance-based, legacy):
    - DataHandler fetches OHLCV data → ICTTradingAgent analyzes structure → PatternDetector identifies patterns → Signals generated with strength scores
 
-2. **Backtesting**:
+3. **Backtesting**:
    - Backtester requests historical data → Simulates trades using ICTTradingAgent signals → RiskManager calculates position sizes → PerformanceReporter generates metrics
 
-3. **Configuration**:
+4. **Configuration**:
    - YAML config loaded → ICTTradingAgent normalizes nested sections → Components receive flattened config
 
 ## Configuration System
@@ -168,21 +228,28 @@ Configuration lives in `config/config.yaml` (copy from `config/config.example.ya
 
 All source modules use relative imports without the `src.` prefix:
 ```python
-from data_handler import DataHandler
+from data_handler import DataHandler  # Legacy - prefer DataUtils
+from utils.data_utils import DataUtils  # New approach
 from ict_agent import ICTTradingAgent
 from pattern_detector import PatternDetector
+from utils.confluence_analyzer import ConfluenceAnalyzer
+from utils.mcp_client import MCPClient
 ```
 
 The package is installed in editable mode (`pip install -e .`) which makes the src directory importable.
+
+**Important**: Skills and MCP server add `src/` to `sys.path` for imports since they run outside the package context.
 
 ## Testing Strategy
 
 Tests are organized by module:
 - `test_patterns.py`: Pattern detection (FVGs, Order Blocks, Liquidity Pools)
-- `test_data_handler.py`: Data fetching and validation
+- `test_data_handler.py`: Data utilities and validation
 - `test_risk_manager.py`: Risk calculations, position sizing, stop loss/take profit
+- `test_mcp_server.py`: MCP server tools and TradingView client (9 async tests)
+- `test_config_loader.py`: YAML configuration loading and validation
 
-Coverage focuses on core trading logic. Excluded from coverage: `*/__init__.py` and test files.
+All tests use pytest. MCP server tests are async and use `pytest.mark.asyncio`. Coverage focuses on core trading logic. Excluded from coverage: `*/__init__.py` and test files.
 
 ## Code Style
 
@@ -194,12 +261,20 @@ Coverage focuses on core trading logic. Excluded from coverage: `*/__init__.py` 
 
 ## Known Patterns
 
-1. **Config Normalization**: ICTTradingAgent flattens nested config sections. When adding new config sections, update the `sections` list in `_normalize_config()`.
+1. **Config Normalization**: ICTTradingAgent flattens nested config sections. When adding new config sections, update the `sections` list in `_normalize_config()` (src/ict_agent.py:47).
 
 2. **Pattern Strength Calculation**: All patterns have strength scores (1-10) used for signal prioritization. Lower threshold = more signals but lower quality.
 
-3. **Data Caching**: DataHandler caches in `data/cache/`. Manual cache clearing may be needed for stale data.
+3. **Data Caching**: DataUtils caches in `data/cache/`. Manual cache clearing may be needed for stale data.
 
 4. **Signal Generation**: Signals include entry_price, stop_loss, take_profit, strength, and pattern metadata. They're time-stamped for tracking.
 
-5. **Backtest Lookback**: Backtester starts simulation at index 100 to ensure sufficient data for indicator calculations.
+5. **Backtest Lookback**: Backtester starts simulation at index 100 to ensure sufficient data for indicator calculations (src/backtester.py:72).
+
+6. **MCP Stub Mode**: TradingView MCP server runs in stub mode when not authenticated, returning sample data for testing. Check `tradingview-scraper` authentication for real data.
+
+7. **Backwards Compatibility**: DataHandler still exists as a wrapper for legacy code. New code should use DataUtils directly.
+
+8. **Data Freshness**: PatternDetector can validate data age via DataFreshnessValidator. Default max age is 5 minutes for real-time analysis.
+
+9. **Confluence Scoring**: Patterns with confluence score ≥ 2 are considered high-probability setups. Score increases with aligned indicators/drawings.
